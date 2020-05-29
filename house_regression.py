@@ -1,14 +1,16 @@
 import pandas as pd
-import seaborn as sns
-import matplotlib.pyplot as plt
+import os
+#import seaborn as sns
+#import matplotlib.pyplot as plt
 
 # Importing the data
 # From the initial shapes we can deduce that the split was roughly 50-50
 # Write a function to import the data
 
-test = pd.read_csv('test.csv')
-train = pd.read_csv('train.csv')
-sub = pd.read_csv('sample_submission.csv')
+test = pd.read_csv(os.path.join('dataset','test.csv'))
+
+train = pd.read_csv(os.path.join('dataset','train.csv'))
+sub = pd.read_csv(os.path.join('submission','sample_submission.csv'))
 
 
 
