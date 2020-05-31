@@ -64,7 +64,6 @@ con_type(int_object, 'object', train)
 
 # print(train.dtypes.value_counts())
 
-
 # Handling the missing data
 
 def null_per(data):
@@ -75,33 +74,55 @@ def null_per(data):
     return missing_data
 
 
-# print(null_per(train))
-# print('Number of missing values: ', train.isna().sum().sum())
+print(null_per(train))
+print('Number of missing values: ', train.isna().sum().sum())
 
-# Columns to drop
 
-train.drop(columns=['PoolQC', 'MiscFeature', 'Alley', 'Alley'], axis=1, inplace=True)
+# Visualize missing values
+
+sns.set_style("dark")
+f, ax = plt.subplots(figsize= (8,7))
+sns.set_color_codes(palette='deep')
+missing = null_per(train)
+missing = missing[missing.Percent>0]
+missing.sort_values(by='Percent', inplace=True)
+g = sns.barplot(x=missing.index, y='Percent', hue='type', data=missing)
+g.set_xticklabels(g.get_xticklabels(), rotation=90)
+
+
+
+# Columns to drop with above 80 percent of missing values
+
+train.drop(columns=['PoolQC', 'MiscFeature', 'Alley', 'Fence'], axis=1, inplace=True)
 # print(null_per(train).sort_values(by=['Total','type'], ascending=[False, True]).head(50))
-# print('Number of missing values: ', train.isna().sum().sum())
-
-
+print('Number of missing values: ', train.isna().sum().sum())
 
 
 # Examining outliers in numerical features
 # The plot shows that we have outliers for the numerical features
 
-numerical_features = ['LotFrontage', 'MasVnrArea' ]
+numerical_features = ['LotFrontage', 'MasVnrArea']
 
-plt.figure(figsize=(15,5))
+# print(train.LotFrontage.mean(), train.LotFrontage.median())
+# print(train.MasVnrArea.mean(), train.MasVnrArea.median())
 
-features_to_examine = ['LotFrontage','MasVnrArea','GarageYrBlt']
-temp = train[numerical_features]
-colors=['','red','blue','green']
-i=1
-for col in temp.columns:
-    plt.subplot(1,3,i)
-    a1 = sns.boxplot(data=temp,y=col,color=colors[i])
-    i+=1
+for col in numerical_features:
+    train[col].fillna(train[col].median(), inplace=True)
 
-print(train.LotFrontage.mean(), train.LotFrontage.median())
-print(train.MasVnrArea.mean(), train.MasVnrArea.median())
+print('Number of missing values: ', train.isna().sum().sum())
+
+sns.set_style("dark")
+f, ax = plt.subplots(figsize= (8,7))
+sns.set_color_codes(palette='deep')
+missing = null_per(train)
+missing = missing[missing.Percent>0]
+missing.sort_values(by='Percent', inplace=True)
+g = sns.barplot(x=missing.index, y='Percent', hue='type', data=missing)
+g.set_xticklabels(g.get_xticklabels(), rotation=90)
+plt.show()
+
+# Taking a look at the date columns
+
+
+
+# Once the categories are grouped we can start analyzing and imputing the missing values
