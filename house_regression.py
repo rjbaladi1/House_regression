@@ -1,15 +1,17 @@
 import pandas as pd
 import os
 import seaborn as sns
+import numpy as np
 import matplotlib.pyplot as plt
+from sklearn.model_selection import train_test_split
 
 # Importing the data
 # From the initial shapes we can deduce that the split was roughly 50-50
 # Write a function to import the data
 
-test = pd.read_csv(os.path.join('dataset','test.csv'))
-train = pd.read_csv(os.path.join('dataset','train.csv'))
-sub = pd.read_csv(os.path.join('submission','sample_submission.csv'))
+test = pd.read_csv(os.path.join('dataset', 'test.csv'))
+train = pd.read_csv(os.path.join('dataset', 'train.csv'))
+sub = pd.read_csv(os.path.join('submission', 'sample_submission.csv'))
 
 train.drop(columns=['Id'], axis=1, inplace=True)
 test.drop(columns=['Id'], axis=1, inplace=True)
@@ -19,14 +21,12 @@ y = train['SalePrice'].reset_index(drop=True)
 
 previous_train = train.copy()
 
-df = pd.concat((train, test)).reset_index(drop = True)
-
 # Dropping the target variable.
-df.drop(['SalePrice'], axis = 1, inplace = True)
+train.drop(['SalePrice'], axis=1, inplace=True)
 
 print('Train shape: ', train.shape)
 print('Test shape: ', test.shape)
-print('All data shape: ', df.shape)
+
 
 # #EDA
 # ''' 1. Correlation
@@ -70,6 +70,7 @@ def null_per(data):
     missing_data = pd.concat([total, percent, dtype], axis=1, keys=['Total', 'Percent', 'type'])
     return missing_data
 
+
 def plot_missing(df):
     ''' Bar plot to show percentage of missing values in df dataframe and color indicates dtypes of features '''
     sns.set_style("dark")
@@ -81,53 +82,71 @@ def plot_missing(df):
     g = sns.barplot(x=missing.index, y='Percent', hue='type', data=missing)
     g.set_xticklabels(g.get_xticklabels(), rotation=90)
 
-print('Number of missing values: ', df.isna().sum().sum())
+
+print('Number of missing values: ', train.isna().sum().sum())
+
+
 # plot_missing(df)
 # plt.show()
 
-convert_str = ['MSSubClass', 'YrSold', 'MoSold']
-for i in convert_str:
-    con_type(i, 'str', df)
+# Clean, impute and feature engineer data
+def clean_data(df):
+    convert_str = ['MSSubClass', 'YrSold', 'MoSold']
+    for i in convert_str:
+        con_type(i, 'str', df)
 
-df['LotFrontage'] = df.groupby('Neighborhood')['LotFrontage'].transform(lambda x: x.fillna(x.mean()))
-df['MSZoning'] = df.groupby('MSSubClass')['MSZoning'].transform(lambda x: x.fillna(x.mode()[0]))
+    df['LotFrontage'] = df.groupby('Neighborhood')['LotFrontage'].transform(lambda x: x.fillna(x.mean()))
+    df['MSZoning'] = df.groupby('MSSubClass')['MSZoning'].transform(lambda x: x.fillna(x.mode()[0]))
 
-mode_fill = ['Functional', 'Exterior1st', 'Exterior2nd', 'KitchenQual', 'SaleType', 'Electrical']
-none_fill = ['Alley', 'MiscFeature', 'Fence', 'FireplaceQu', 'GarageType', 'GarageFinish', 'GarageQual', 'GarageCond', 'BsmtQual', 'BsmtCond', 'BsmtExposure', 'BsmtFinType1', 'BsmtFinType2', 'MasVnrType']
-zero_fill = ['BsmtFinSF1', 'BsmtFinSF2', 'BsmtUnfSF', 'TotalBsmtSF', 'BsmtFullBath', 'BsmtHalfBath', 'GarageArea', 'GarageCars', 'GarageYrBlt', 'MasVnrArea']
-drop_col = ['Utilities', 'Street', 'PoolQC']
+    mode_fill = ['Functional', 'Exterior1st', 'Exterior2nd', 'KitchenQual', 'SaleType', 'Electrical']
+    none_fill = ['Alley', 'MiscFeature', 'Fence', 'FireplaceQu', 'GarageType', 'GarageFinish', 'GarageQual',
+                 'GarageCond', 'BsmtQual', 'BsmtCond', 'BsmtExposure', 'BsmtFinType1', 'BsmtFinType2', 'MasVnrType']
+    zero_fill = ['BsmtFinSF1', 'BsmtFinSF2', 'BsmtUnfSF', 'TotalBsmtSF', 'BsmtFullBath', 'BsmtHalfBath', 'GarageArea',
+                 'GarageCars', 'GarageYrBlt', 'MasVnrArea']
+    drop_col = ['Utilities', 'Street', 'PoolQC']
 
-df = df.drop(drop_col, axis=1)
+    df = df.drop(drop_col, axis=1)
 
-for i in mode_fill:
-    df[i] = df[i].fillna(df[i].mode()[0])
+    for i in mode_fill:
+        df[i] = df[i].fillna(df[i].mode()[0])
 
-for i in none_fill:
-    df[i] = df[i].fillna('None')
+    for i in none_fill:
+        df[i] = df[i].fillna('None')
 
-for i in zero_fill:
-    df[i] = df[i].fillna(0)
+    for i in zero_fill:
+        df[i] = df[i].fillna(0)
 
-print('Number of missing values: ', df.isna().sum().sum())
-print('All data after imputation: ', df.shape)
+    print('Number of missing values: ', df.isna().sum().sum())
+    print('All data after imputation: ', df.shape)
 
-# Feature engineering more columns that can be grouped together
+    # Feature engineering more columns that can be grouped together
 
-df['total_bsmt_sf'] = df['TotalBsmtSF']+df['1stFlrSF'] + df['2ndFlrSF']
-df['yrblt_remod'] = df['YearBuilt'] + df['YearRemodAdd']
-df['total_house_sf'] = df['BsmtFinSF1'] + df['BsmtFinSF2'] + df['1stFlrSF'] + df['2ndFlrSF']
-df['nb_baths'] = df['FullBath'] + (0.5 * df['HalfBath']) + df['BsmtFullBath'] + (0.5 * df['BsmtHalfBath'])
-df['porch'] = df['OpenPorchSF'] + df['3SsnPorch'] + df['EnclosedPorch'] + df['ScreenPorch'] + df['WoodDeckSF']
+    df['total_bsmt_sf'] = df['TotalBsmtSF'] + df['1stFlrSF'] + df['2ndFlrSF']
+    df['yrblt_remod'] = df['YearBuilt'] + df['YearRemodAdd']
+    df['total_house_sf'] = df['BsmtFinSF1'] + df['BsmtFinSF2'] + df['1stFlrSF'] + df['2ndFlrSF']
+    df['nb_baths'] = df['FullBath'] + (0.5 * df['HalfBath']) + df['BsmtFullBath'] + (0.5 * df['BsmtHalfBath'])
+    df['porch'] = df['OpenPorchSF'] + df['3SsnPorch'] + df['EnclosedPorch'] + df['ScreenPorch'] + df['WoodDeckSF']
+    df['haspool'] = df['PoolArea'].apply(lambda x: 1 if x > 0 else 0)
+    df['has2ndfloor'] = df['2ndFlrSF'].apply(lambda x: 1 if x > 0 else 0)
+    df['hasgarage'] = df['GarageArea'].apply(lambda x: 1 if x > 0 else 0)
+    df['hasbsmt'] = df['TotalBsmtSF'].apply(lambda x: 1 if x > 0 else 0)
+    df['hasfireplace'] = df['Fireplaces'].apply(lambda x: 1 if x > 0 else 0)
 
-print(df.shape)
+    print('Shape with additional cols: ', df.shape)
+    print(df.dtypes.value_counts())
 
-df['haspool'] = df['PoolArea'].apply(lambda x: 1 if x > 0 else 0)
-df['has2ndfloor'] = df['2ndFlrSF'].apply(lambda x: 1 if x > 0 else 0)
-df['hasgarage'] = df['GarageArea'].apply(lambda x: 1 if x > 0 else 0)
-df['hasbsmt'] = df['TotalBsmtSF'].apply(lambda x: 1 if x > 0 else 0)
-df['hasfireplace'] = df['Fireplaces'].apply(lambda x: 1 if x > 0 else 0)
+    num_features = df.select_dtypes(include=['float', 'int'])
+    cat_features = df.select_dtypes(include=[np.object])
+    cat_features = pd.get_dummies(cat_features.reset_index(drop=True))
+    X = pd.concat([num_features, cat_features], axis=1)
+    print('Shape after adding the dummy variables for the cat dtypes: ', X.shape)
+    return X
 
-print(df.shape)
+# Clean the train data
 
-# Create a list of columns that need to be categories
-print(df.dtypes.value_counts())
+X = clean_data(train)
+print(X.shape)
+
+# Split and train data
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.20, random_state=123)
+
